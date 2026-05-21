@@ -1,35 +1,32 @@
-# Codemagic CI/CD for Tower Defense 102
-# App: https://github.com/mattypatty918-wq/tower-defense-102
-
+name: Iron Citadel Quest
+description: Tower defense sequel with more levels and enemies
+type: ios
+environment:
+  ios: "17.0"
+  node: "18"
 workflows:
   ios-workflow:
-    name: iOS Build
+    name: iOS
     max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Codemagic
     environment:
-      node: "18"
-      xcode: "16.0"
-      cocoapods: "1.15.2"
+      vars:
+        BUNDLE_ID: com.mattypattysapps.ironcitadelquest
+        XCODE_WORKSPACE: App/App.xcworkspace
+        XCODE_SCHEME: App
+    scripts:
+      - npm install
+      - npx cap sync ios
+      - cd ios/App && pod install
+      - keychain initialize
+      - app-store-connect fetch-signing-files $BUNDLE_ID --type IOS_APP_STORE --create
+      - keychain add-certificates
+      - xcode-project use-profiles
+      - xcode-project build-ipa --workspace $XCODE_WORKSPACE --scheme $XCODE_SCHEME
     artifacts:
       - build/ios/ipa/*.ipa
-    scripts:
-      - name: Install dependencies
-        script: npm install && npx cap sync ios
-      - name: Build iOS
-        script: |
-          cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -archive archive App.xcarchive 2>&1 | tail -20
-          xcodebuild -exportArchive -archive archive/App.xcarchive -exportPath ../build/ios/ipa -exportOptionsPlist ../ExportOptions.plist
-
-  android-workflow:
-    name: Android Build
-    max_build_duration: 60
-    environment:
-      node: "18"
-      java: "21"
-    artifacts:
-      - android/app/build/outputs/apk/release/*.apk
-    scripts:
-      - name: Build Android Release
-        script: |
-          export JAVA_HOME=/opt/java-21
-          export ANDROID_HOME=/opt/android-sdk
-          npx cap sync android && cd android && ./gradlew assembleRelease --no-daemon 2>&1 | tail -10
+    publishing:
+      app_store_connect:
+        auth: integration
